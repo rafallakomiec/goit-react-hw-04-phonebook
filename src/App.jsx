@@ -1,111 +1,112 @@
-import { Component } from 'react';
 import { nanoid } from 'nanoid';
 import ContactForm from './components/ContactForm/ContactForm';
 import Filter from './components/Filter/Filter';
 import ContactList from './components/ContactList/ContactList';
 import ContactItem from './components/ContactItem/ContactItem';
 import localStorageHandlers from './utils/localStorageHandlers';
-class App extends Component {
-  #LOCAL_STORAGE_KEY = "contacts";
+import { useEffect, useRef, useState } from 'react';
+const App = () => {
+  const LOCAL_STORAGE_KEY = "contacts";
 
-  state = {
-    contacts: [],
-    filterInput: '',
-    name: '',
-    number: '',
+  const [contacts, setContacts] = useState([]);
+  const [filterInput, setFilterInput] = useState('');
+  const [name, setName] = useState('');
+  const [number, setNumber] = useState('');
+
+  const handleChange = event => {
+    switch (event.target.name) {
+      case 'name':
+        setName(event.target.value);
+        break;
+      case 'number':
+        setNumber(event.target.value);
+        break;
+      case 'filterInput':
+        setFilterInput(event.target.value);
+    }
   };
 
-  handleChange = event => {
-    this.setState({ [event.target.name]: event.target.value });
-  };
+  const contactsRef = useRef();
+  contactsRef.current = contacts;
 
-  handleSubmit = event => {
+  const handleSubmit = event => {
     event.preventDefault();
 
-    if (this.state.contacts.some(contact => contact.name.toLocaleLowerCase() === event.target.name.value.toLocaleLowerCase())) {
+    if (contacts.some(contact => contact.name.toLocaleLowerCase() === event.target.name.value.toLocaleLowerCase())) {
       alert(event.target.name.value + ' is already in contacts!');
-      this.setState({
-        name: '',
-        number: ''
-      });
+      setName('');
+      setNumber('');
       return;
     }
 
-    this.setState(
-      {
-        contacts: [
-          ...this.state.contacts,
-          {
-            name: event.target.name.value,
-            number: event.target.number.value,
-            id: nanoid(),
-          },
-        ],
-        name: '',
-        number: ''
-      });
+    setContacts(
+      [
+        ...contacts,
+        {
+          name: event.target.name.value,
+          number: event.target.number.value,
+          id: nanoid(),
+        }
+      ]);
+    setName('');
+    setNumber('');
   };
 
-  handleDelete = event => {
-    const newContacts = [...this.state.contacts];
+  const handleDelete = event => {
+    const newContacts = [...contacts];
     newContacts.splice(
-      this.state.contacts.findIndex(contact => contact.id === event.target.id),
+      contacts.findIndex(contact => contact.id === event.target.id),
       1
     );
     
-    this.setState({
-        contacts: newContacts
-    })
+    setContacts(newContacts);
   };
 
-  render() {
-    const { contacts, filterInput } = this.state;
-    const list =
-      filterInput.length > 0
-        ? contacts
-            .filter(contact =>
-              contact.name.toLocaleLowerCase().includes(filterInput.toLocaleLowerCase())
-            )
-            .map(contact => (
-              <ContactItem
-                key={contact.id}
-                id={contact.id}
-                name={contact.name}
-                number={contact.number}
-                deleteHandler={this.handleDelete}
-              />
-            ))
-        : contacts.map(contact => (
+  const list =
+    filterInput.length > 0
+      ? contacts
+          .filter(contact =>
+            contact.name.toLocaleLowerCase().includes(filterInput.toLocaleLowerCase())
+          )
+          .map(contact => (
             <ContactItem
               key={contact.id}
               id={contact.id}
               name={contact.name}
               number={contact.number}
-              deleteHandler={this.handleDelete}
+              deleteHandler={handleDelete}
             />
-          ));
+          ))
+      : contacts.map(contact => (
+          <ContactItem
+            key={contact.id}
+            id={contact.id}
+            name={contact.name}
+            number={contact.number}
+            deleteHandler={handleDelete}
+          />
+      ));
+  
+  useEffect(() => {
+    const storageState = localStorageHandlers.load(LOCAL_STORAGE_KEY);
+    setContacts(storageState === undefined ? [] : storageState);
+  }, []);
 
-    return (
-      <>
-        <h1>Phonebook</h1>
-        <ContactForm submitHandler={this.handleSubmit} changeHandler={this.handleChange} name={this.state.name} number={this.state.number} />
-        <h2>Contacts</h2>
-        <Filter changeHandler={this.handleChange} filterVal={filterInput} />
-        <ContactList>{list}</ContactList>
-      </>
-    );
-  }
-
-  componentDidMount() {
-    const storageState = localStorageHandlers.load(this.#LOCAL_STORAGE_KEY);
-    this.setState({ contacts: storageState === undefined ? [] : storageState});
-  }
-
-  componentDidUpdate(prevProps, prevState) {
-    if (prevState.contacts.length !== this.state.contacts.length) {
-        localStorageHandlers.save(this.#LOCAL_STORAGE_KEY, this.state.contacts);
+  useEffect(() => { 
+    if (contactsRef.current.length !== contacts.length) {
+        localStorageHandlers.save(LOCAL_STORAGE_KEY, contacts);
     }
-  }
+  }, [contactsRef.current]);
+
+  return (
+    <>
+      <h1>Phonebook</h1>
+      <ContactForm submitHandler={handleSubmit} changeHandler={handleChange} name={name} number={number} />
+      <h2>Contacts</h2>
+      <Filter changeHandler={handleChange} filterVal={filterInput} />
+      <ContactList>{list}</ContactList>
+    </>
+  );
 }
 
 export default App;
